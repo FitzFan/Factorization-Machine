@@ -24,12 +24,12 @@
 4、有种说法是：FM模型称为多项式的广义线性模型，个人认为是不准确的：
 - FM和线性模型有着很大的不同：线性模型是直接通过数据学习特征的参数，而FM是基于MF学习特征的latent factor。
 
-5、FM的接口，建议选用pywFM
-主要参数：
+5、FM的接口，建议选用pywFM和pyFM，二者区别不是很大
+- pyFM :https://github.com/coreylynch/pyFM/blob/master/pyfm/pylibfm.py
+- pywFM:https://github.com/jfloff/pywFM
+- 二者的区别：http://mufool.com/2017/11/20/fm/
+pywFM涉及到的主要参数：（pyFM也差不多）
 	- k2:2阶交互项，每个特征对应的latent factor的长度。
-	- **1**对比一下SGD、ALS、MCMC的区别和优劣势
-	- **2**学习ALS优化算法
-
 
 6、FFM和FM相比：
 - 最大的区别：假设样本的 n 个特征属于 f 个field，那么FFM的二次项有 nf个隐向量。而在FM模型中，每一维特征的隐向量只有一个。FM可以看作FFM的特例
@@ -37,6 +37,12 @@
 - 用FFM做特征组合的本质：特征_1与特征_2交叉的结果为：特征_1在特征_2所属field的latent factor 与 特征_2在特征_1所属field的latent factor 进行内积。
 - 暂时未找到比较好的实现FFM的python接口。所以不知道具体的实现方式，也不知道参数怎么控制结果。比如field怎么定？
 - 面试时，坦言只了解过原理，未实现过。
+
+
+7、待学习的点：	
+	- **1**对比一下SGD、ALS、MCMC的区别和优劣势
+	- **2**学习ALS优化算法
+	- **3**pyFM的基于SGDA算法实现，是什么意思？
 """
 
 
