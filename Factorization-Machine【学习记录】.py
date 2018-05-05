@@ -39,10 +39,23 @@ pywFM涉及到的主要参数：（pyFM也差不多）
 - 面试时，坦言只了解过原理，未实现过。
 
 
-7、待学习的点：	
-	- **1**对比一下SGD、ALS、MCMC的区别和优劣势
-	- **2**学习ALS优化算法
-	- **3**pyFM的基于SGDA算法实现，是什么意思？
+7、基于fastFM包实现FM算法，分别使用SGD、ALS、MCMC三种优化算法
+- 使用demo：https://blog.csdn.net/jiangda_0_0/article/details/77510029
+
+8、ALS填坑
+- 资料：https://www.jianshu.com/p/9a584bba1c68、https://blog.csdn.net/m0_37788308/article/details/78196674
+- ALS有一个假设是打分矩阵是低秩矩阵。个人认为这应该是用MF做CF的假设才对。
+- ALS本质上是一个optimization algorithm，地位和Gradient Descent一样；
+- ALS一般用在矩阵分解。可以理解为：矩阵分解是模型（决定loss function的样子），ALS和SGD是optimizer（帮助寻找最优解的位置）
+- ALS和SMO以及EM算法的的思想有点类似，即可以借助对SMO的理解来帮助推导ALS的解。
+- ALS的优点：收敛速度快、对初始值不敏感；
+- ALS的缺点：需要对user和item的latent factor matrix求逆矩阵。
+- ALS的进阶变形：ALS-WR
+-- ALS-WR解决的问题背景：
+	多情况下，用户没有明确反馈对商品的偏好，也就是没有直接打分，我们只能通过用户的某些行为来推断他对商品的偏好。比如，在电视节目推荐的问题中，对电视节目收看的次数或者时长，这时我们可以推测次数越多，看得时间越长，用户的偏好程度越高，但是对于没有收看的节目，可能是由于用户不知道有该节目，或者没有途径获取该节目，我们不能确定的推测用户不喜欢该节目。ALS-WR通过置信度权重来解决这些问题：对于更确信用户偏好的项赋以较大的权重，对于没有反馈的项，赋以较小的权重。
+-- 资料：https://www.jianshu.com/p/9a584bba1c68
+-- 本质就是对loss function进行修正，使其更符合实际情况。
+
 """
 
 
