@@ -32,7 +32,7 @@ pywFM涉及到的主要参数：（pyFM也差不多）
 	- k2:2阶交互项，每个特征对应的latent factor的长度。
 
 6、FFM和FM相比：
-- 最大的区别：假设样本的 n 个特征属于 f 个field，那么FFM的二次项有 nf个隐向量。而在FM模型中，每一维特征的隐向量只有一个。FM可以看作FFM的特例
+- 最大的区别：假设样本的 n 个特征属于 f 个field，那么FFM的二次项有 nf 个隐向量。而在FM模型中，每一维特征的隐向量只有一个。FM可以看作FFM的特例
 - LR、poly、FM、FFM在做特征交叉的区别：参见FFM进行特征交叉的实例.pdf
 - 用FFM做特征组合的本质：特征_1与特征_2交叉的结果为：特征_1在特征_2所属field的latent factor 与 特征_2在特征_1所属field的latent factor 进行内积。
 - 暂时未找到比较好的实现FFM的python接口。所以不知道具体的实现方式，也不知道参数怎么控制结果。比如field怎么定？
