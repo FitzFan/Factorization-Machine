@@ -36,7 +36,6 @@ pywFM涉及到的主要参数：（pyFM也差不多）
 - LR、poly、FM、FFM在做特征交叉的区别：参见FFM进行特征交叉的实例.pdf
 - 用FFM做特征组合的本质：特征_1与特征_2交叉的结果为：特征_1在特征_2所属field的latent factor 与 特征_2在特征_1所属field的latent factor 进行内积。
 - 暂时未找到比较好的实现FFM的python接口。所以不知道具体的实现方式，也不知道参数怎么控制结果。比如field怎么定？
-- 面试时，坦言只了解过原理，未实现过。
 
 
 7、基于fastFM包实现FM算法，分别使用SGD、ALS、MCMC三种优化算法
