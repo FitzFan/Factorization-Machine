@@ -43,6 +43,11 @@ libsvm 数据格式如下：(第一列是 labels，后面是依次的 features�
 ***使用libsvm的好处是对于稀疏的数据能够节省空间。***
 """
 
+"""
+- 此algo是basic的FM，所使用的optimzer有：momentum、nesterov、adam。FTRL的版本参见另一个脚本；
+- FM的TensorFlow版本参见deepFM的代码。
+"""
+
 def data_generator(path,no_norm=False,task='c'):
     data = open(path,'r')
     for row in data:
@@ -181,16 +186,23 @@ class SGD(object):
 
         """
         此处使用下划线的含义解释：
-        - 下划线作为临时性的名称使用。
-        - 并且不会在后面再次用到该名称。
+        - 下划线作为临时性的名称使用，并且不会在后面再次用到该名称。
         - 其实很傻，可以直接用：self.m_W = [0.0] * dim
         """
+        # 一阶的参数
         self.m_W = [0.0 for _ in range(dim)]
         self.v_W = [0.0 for _ in range(dim)]
 
-        self.m_V = [[0.0 for _ in range(self.n_components)] for _ in range(dim)]
-        self.v_V = [[0.0 for _ in range(self.n_components)] for _ in range(dim)]
+        """
+        这里会产生一个复合列表：
+        - 外层列表的长度等于dim
+        - 内层列表的长度等于n_components
+        """
+        # 二阶参数
+        self.m_V = [[0.0 for _ in range(self.n_components)] for _ in range(dim)] # n_components: dimension of latent
+        self.v_V = [[0.0 for _ in range(self.n_components)] for _ in range(dim)] # dim: dimension of feature space
 
+        # bias
         self.m_bias = 0.0
         self.v_bias = 0.0
 
