@@ -146,7 +146,7 @@ def do_one_hot(data_samples, target_samples):
     # convert dataFrame to ndarray
     X_train = X_train.values
     X_test = X_test.values
-    y_train = y_train.values.flatten()  # shape必须是(10000,)
+    y_train = y_train.values.flatten()  # shape must be like (10000,)
     y_test = y_test.values.flatten()
 
     print '+------------------------------------------+'
