@@ -101,8 +101,8 @@ def read_data(path):
     print 'Start To Read Data:', start_time
 
     # read train dataSet
-    data_samples = pd.read_csv(path+'feature_ryan.dat', sep=',')
-    target_samples = pd.read_csv(path+'target_ryan.dat', sep=',')
+    data_samples = pd.read_csv(path+'feature_ryan.dat', sep=',')[0:20000000]
+    target_samples = pd.read_csv(path+'target_ryan.dat', sep=',')[0:20000000]
 
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     print 'End To Read Data:', end_time
@@ -222,6 +222,10 @@ def main():
     data_samples, target_samples = read_data(path)
 
     # one-hot processing
+    """
+	待解决问题：全量4千万数据，one-hot时会爆内存，garbage collect 无法解决。
+	可能是dataFrame过分耗内存，考虑到最后只是用ndarray，建议从一开始就使用ndarray。
+    """
     X_train, X_test, y_train, y_test, dim_ = do_one_hot(data_samples, target_samples)
 
     # define hyper_params

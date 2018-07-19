@@ -80,10 +80,6 @@ class one_hot_processing(object):
 			self.train_frame.drop([col], axis=1, inplace=True)
 			self.test_frame.drop([col], axis=1, inplace=True)
 
-		# garbage collect
-		del temp_train, temp_test
-		gc.collect()
-
 	def run(self):
 		# encode all the categorical features.
 		self.label_encode_trans()
