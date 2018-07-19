@@ -22,6 +22,7 @@ from one_hot import one_hot_processing
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
+
 class FTRL:
     def __init__(self, base, args_parse, iteration):
         """
