@@ -14,14 +14,20 @@ import re
 import gc
 import datetime
 import warnings
+import commands
 import pandas as pd 
 import numpy as np
-from FM_FTRL import FM
-from LR_FTRL import LR, evaluate_model, get_auc
-from one_hot import one_hot_processing
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
+from FM_FTRL import FM
+from LR_FTRL import LR, evaluate_model, get_auc
+from preprocessing import data_preprocess
+
+"""
+- python implementation of Factorization Machines and Logistic Regression
+- optimizer is FTRL
+"""
 
 class FTRL:
     def __init__(self, base, args_parse, iteration):
@@ -95,67 +101,75 @@ class FTRL:
             evaluation = roc_auc_score(y_true=test_labels, y_score=test_preds)
         return evaluation
 
-def read_data(path):
-    # time clock
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    print 'Start To Read Data:', start_time
-
-    # read train dataSet
-    data_samples = pd.read_csv(path+'feature_ryan.dat', sep=',')[0:200000]
-    target_samples = pd.read_csv(path+'target_ryan.dat', sep=',')[0:200000]
-
-    end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    print 'End To Read Data:', end_time
-    print '+------------------------------------------+'
-
-    return data_samples, target_samples
-
-def do_one_hot(data_samples, target_samples):
-    # get dimensions of dataSet
-    num_samples, dim_ = data_samples.shape
-    print 'Before One Hot Encoding'
-    print 'num_samples is', num_samples
-    print 'feature_dimension is', dim_
-    print '+------------------------------------------+'
-
-    # split all the samples into training data and testing data
-    X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=42)
-
-    # garbage collect
-    del data_samples, target_samples
+def gabage_collect(val):
+    del val
     gc.collect()
 
-    # one-hot processing
-    start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    one_hot_cols = ['banner_pos','site_category','app_category','device_type','device_conn_type']
-    one_hot_method = one_hot_processing(X_train, X_test, one_hot_cols)
-    X_train, X_test = one_hot_method.run()
+def read_data(data_path, tar_col=None):
+    if tar_col is not None:
+        data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col)
+    else:
+        data_samples = pd.read_csv(data_path, sep=',')
+
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    # one-hot 效果验证
-    num_samples, dim_ = X_train.shape
+    return data_samples
 
-    print 'Start To One-Hot Precessing:', start_time
-    print 'End   To One-Hot Precessing:', end_time
-    print 'After One Hot Encoding'
-    print 'num_samples is', num_samples
-    print 'feature_dimension is', dim_
+def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
+    # time clock
+    start = time.clock()
 
-    # convert dataFrame to ndarray
-    X_train = X_train.values
-    X_test = X_test.values
-    y_train = y_train.values.flatten()  # shape must be like (10000,)
-    y_test = y_test.values.flatten()
+    print 'Begin To label encode'
 
-    print '+------------------------------------------+'
-    print "type of X_train is", type(X_train)
-    print "type of X_test  is", type(X_test)
-    print "type of y_train is", type(y_train)
-    print "type of y_test  is", type(y_test)
+    for col_name in need_label_encode_dic:
+        # read data 
+        data_samples = read_data(raw_data_path, list(need_label_encode_dic[col_name]))
 
-    return X_train, X_test, y_train, y_test, dim_
+        data_preprocess_method = data_preprocess(data_samples, col_name)
+        data_preprocess_method.run()
 
-def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
+        print col_name, 'done to label encode'
+
+    print '\n Begin To one hot encode'
+
+    # gabage collect
+    gabage_collect(data_samples)
+
+    # one-hot processing
+    for col_name in need_one_hot_dic:
+        # read data 
+        data_samples = read_data(raw_data_path, list(need_one_hot_dic[col_name]))
+
+        data_preprocess_method = data_preprocess(data_samples, col_name, 'one_hot')
+        data_preprocess_method.run()
+
+        print col_name, 'done to one hot'
+    
+    # gabage collect
+    gabage_collect(data_samples)
+
+    # 合并所有的中间数据
+    paste_cmd = 'paste -d ',' prepro_*.dat > ../data/all_featrue_after_preprocessing.dat'
+    paste_out = commands.getstatusoutput(paste_cmd)
+
+    if str(paste_out[0]) == '0':
+        print 'Succeed to paste all prepro_*.dat to all_featrue_preprocessing.dat'
+
+        # check rows of all_featrue_preprocessing.dat
+        wc_cmd = 'wc -l all_featrue_after_preprocessing.dat'
+        wc_out = commands.getstatusoutput(wc_cmd)
+
+        if str(wc_out[0]) == '0':
+            print 'rows of all_featrue_preprocessing.dat is',wc_out[1][0:wc_out[1].find(' ')]
+        else:
+            print wc_out[1]
+    else:
+        print paste_out[1]
+
+    print 'End To data preprocessing, time Used:', (time.clock() - start)
+    print '+------------------------------------------+' 
+    
+def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):  
     # time clock
     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     print '+------------------------------------------+'
@@ -215,16 +229,30 @@ def main():
     # ignore warnings
     warnings.filterwarnings("ignore")
 
-    # read data
-    path = '../data/'
-    data_samples, target_samples = read_data(path)
+    # set path of raw data
+    raw_data_path = '../data/feature_ryan.dat'
 
-    # one-hot processing
-    """
-	待解决问题：全量4千万数据，one-hot时会爆内存，garbage collect 无法解决。
-	可能是dataFrame过分耗内存，考虑到最后只是用ndarray，建议从一开始就使用ndarray。
-    """
-    X_train, X_test, y_train, y_test, dim_ = do_one_hot(data_samples, target_samples)
+    # set features needed to preprocessing
+    need_label_encode_dic = {'app_category':11,
+
+                            }
+    need_one_hot_dic = {''
+
+                        }
+
+    # data preprocessing
+    preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic)
+
+    # set path of preprocessed data
+    data_samples = read_data('../data/all_featrue_after_preprocessing.dat')
+    target_samples = read_data('../data/label_ryan_dat')
+
+    # split all the samples into training data and testing data
+    X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=24)
+ 
+    # gabage collect
+    gabage_collect(data_samples)
+    gabage_collect(target_samples)
 
     # define hyper_params
     hyper_params = {
@@ -241,9 +269,25 @@ def main():
         'lambda_v2': 0.2,
         }
     iteration_ = 1000
-    
+
+    # convert dataFrame to ndarray
+    X_train = X_train.values
+    X_test  = X_test.values
+    y_train = y_train.values.flatten()  # shape must be like (10000,)
+    y_test  = y_test.values.flatten()
+
+    print '+------------------------------------------+'
+    print "type of X_train is", type(X_train)
+    print "type of X_test  is", type(X_test)
+    print "type of y_train is", type(y_train)
+    print "type of y_test  is", type(y_test)
+
     # train model
     train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_)
+
+    """
+    还差：save model and test use model
+    """
 
 if __name__ == "__main__":
     main()
