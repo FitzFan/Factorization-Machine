@@ -101,8 +101,8 @@ def read_data(path):
     print 'Start To Read Data:', start_time
 
     # read train dataSet
-    data_samples = pd.read_csv(path+'feature_ryan.dat', sep=',')[0:20000000]
-    target_samples = pd.read_csv(path+'target_ryan.dat', sep=',')[0:20000000]
+    data_samples = pd.read_csv(path+'feature_ryan.dat', sep=',')[0:200000]
+    target_samples = pd.read_csv(path+'target_ryan.dat', sep=',')[0:200000]
 
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     print 'End To Read Data:', end_time
@@ -127,18 +127,16 @@ def do_one_hot(data_samples, target_samples):
 
     # one-hot processing
     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    print 'Start To One-Hot Precessing:', start_time
-
     one_hot_cols = ['banner_pos','site_category','app_category','device_type','device_conn_type']
     one_hot_method = one_hot_processing(X_train, X_test, one_hot_cols)
     X_train, X_test = one_hot_method.run()
-
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    print 'End To One-Hot Precessing:', end_time
 
     # one-hot 效果验证
     num_samples, dim_ = X_train.shape
-    print '+------------------------------------------+'
+
+    print 'Start To One-Hot Precessing:', start_time
+    print 'End   To One-Hot Precessing:', end_time
     print 'After One Hot Encoding'
     print 'num_samples is', num_samples
     print 'feature_dimension is', dim_
