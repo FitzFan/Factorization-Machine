@@ -60,7 +60,15 @@ class data_preprocess(object):
 
 		# 判断是否需要做one-hot
 		if self.task == 'one_hot':
+			# call function
 			self.one_hot_encode()
+
+			# 设置文件名
+			file_name = self.total_frame.columns[0]
+			file_name = file_name[0:file_name.find('_#$#_')]
+		else:
+			# 设置文件名
+			file_name = self.total_frame.columns[0]
 
 		# 创建中间数据存储目录
 		temp_data_path='../temp_data/'
@@ -68,8 +76,6 @@ class data_preprocess(object):
 			os.mkdir(temp_data_path)
 
 		# 写出文件
-		file_name = self.total_frame.columns[0]
-		file_name = file_name[0:file_name.find('_#$#_')]
 		self.total_frame.to_csv(temp_data_path+'prepro_'+file_name+'.dat', sep=',', header=True, index=False)
 
 		print 'done to write out prepro_'+file_name+'.dat'

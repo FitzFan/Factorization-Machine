@@ -25,22 +25,9 @@ class one_hot_processing(object):
 		self.total_frame = total_frame
 		self.col = col_name
 
-	def gabage_collect(self, val):
-		del val
-		gc.collect()
-
 	def one_hot_trans(self):
 		# initialize function
 		one_hot_encoder = OneHotEncoder()
-
-		# creating an exhaustive list of all possible categorical values
-		data = self.total_frame[[self.col]]
-
-		# Fitting One Hot Encoding on train data and test data
-		one_hot_encoder.fit(data)
-
-		# garbage collect
-		self.gabage_collect(data)
 
 		# transform to array after one_encoding
 		temp_train = one_hot_encoder.fit_transform(self.total_frame[[self.col]].values.reshape(-1,1)).toarray()
@@ -55,7 +42,8 @@ class one_hot_processing(object):
 		self.total_frame = pd.concat([self.total_frame, temp_train], axis=1)
 		
 		# garbage collect
-		self.gabage_collect(temp_train)
+		del temp_train
+		gc.collect()
 
 		# del old column
 		self.total_frame.drop([self.col], axis=1, inplace=True)

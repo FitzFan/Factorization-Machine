@@ -101,10 +101,6 @@ class FTRL:
             evaluation = roc_auc_score(y_true=test_labels, y_score=test_preds)
         return evaluation
 
-def gabage_collect(val):
-    del val
-    gc.collect()
-
 def read_data(data_path, tar_col=None):
     if tar_col is not None:
         data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col)
@@ -121,32 +117,49 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
 
     print 'Begin To label encode'
 
+    # label-encode processing
     for col_name in need_label_encode_dic:
         # read data 
-        data_samples = read_data(raw_data_path, list(need_label_encode_dic[col_name]))
+        data_samples = read_data(raw_data_path, [need_label_encode_dic[col_name]])
 
+        # 设一个保险
+        if data_samples.columns[0] != col_name:
+            print 'maybe index is wrong, please debug...'
+            print 'data_samples.columns is', data_samples.columns[0]
+            print 'col_name is', col_name
+
+        # call function
         data_preprocess_method = data_preprocess(data_samples, col_name)
         data_preprocess_method.run()
 
         print col_name, 'done to label encode'
 
-    print '\n Begin To one hot encode'
+    print '\nBegin To one hot encode'
 
     # gabage collect
-    gabage_collect(data_samples)
+    del data_samples
+    gc.collect()
 
     # one-hot processing
     for col_name in need_one_hot_dic:
         # read data 
-        data_samples = read_data(raw_data_path, list(need_one_hot_dic[col_name]))
+        data_samples = read_data(raw_data_path, [need_one_hot_dic[col_name]])
 
+        # 设一个保险
+        if data_samples.columns[0] != col_name:
+            print 'maybe index is wrong, please debug...'
+            print 'data_samples.columns is', data_samples.columns[0]
+            print 'col_name is', col_name
+
+        # call function
         data_preprocess_method = data_preprocess(data_samples, col_name, 'one_hot')
         data_preprocess_method.run()
 
         print col_name, 'done to one hot'
     
     # gabage collect
-    gabage_collect(data_samples)
+    del data_samples
+    gc.collect()
 
     # 合并所有的中间数据
     paste_cmd = 'paste -d ',' prepro_*.dat > ../data/all_featrue_after_preprocessing.dat'
@@ -233,26 +246,51 @@ def main():
     raw_data_path = '../data/feature_ryan.dat'
 
     # set features needed to preprocessing
-    need_label_encode_dic = {'app_category':11,
+    """
+    - dict:
+        - key：col_name
+        - value:col_num
+    - one_hot 和 label_encode只需要做其中一个
+    - 坑：shell索引的起点是1，python是0。
+    """
+    need_label_encode_dic = {'site_id':2,
+                            'site_domain':3,
+                            'app_id':5,
+                            'device_id':8,
+                            'device_ip':9,
+                            'device_model':10,
+                           }
 
-                            }
-    need_one_hot_dic = {''
-
+    need_one_hot_dic = {'site_category':4,
+                        'app_domain':6,
+                        'app_category':7,
+                        'device_type':11,
+                        'device_conn_type':12
                         }
 
     # data preprocessing
+    """
+    增加更大数据量的压力测试
+    """
     preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic)
 
     # set path of preprocessed data
     data_samples = read_data('../data/all_featrue_after_preprocessing.dat')
     target_samples = read_data('../data/label_ryan_dat')
 
+    # data_set basic info
+    print '+----------------------+'
+    print 'feature dim is', len(data_samples.columns)
+    print 'total  rows is', len(data_samples)
+    print 'size of object is', format(sys.getsizeof(data_samples)/1024.0/1024.0, '0.2f'), 'MB'
+    print '+----------------------+'
+
     # split all the samples into training data and testing data
     X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=24)
  
     # gabage collect
-    gabage_collect(data_samples)
-    gabage_collect(target_samples)
+    del data_samples, target_samples
+    gc.collect()
 
     # define hyper_params
     hyper_params = {
@@ -268,7 +306,7 @@ def main():
         'lambda_v1': 0.2,
         'lambda_v2': 0.2,
         }
-    iteration_ = 1000
+    iteration_ = 100
 
     # convert dataFrame to ndarray
     X_train = X_train.values
