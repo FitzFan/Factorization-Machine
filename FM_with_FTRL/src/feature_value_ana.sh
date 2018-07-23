@@ -6,12 +6,13 @@ file_name=$1
 # 获取文件的列数
 cols=`awk -F ',' '{print NF}' $file_name |head -1`
 
-# 设置表头
+# 清空旧文件
 out_put_path="../out_put/feature_ana.dat"
 if [ -f "$out_put_path" ]; then
 	rm $out_put_path
 fi
 
+# 设置表头
 echo -e "col_num\tvalue_num\tcol_name">>"../out_put/feature_ana.dat"
 
 # 循环计算每个字段的去重值

@@ -25,8 +25,9 @@ from LR_FTRL import LR, evaluate_model, get_auc
 from preprocessing import data_preprocess
 
 """
-- python implementation of Factorization Machines and Logistic Regression
-- optimizer is FTRL
+- DIY python implementation of Factorization Machines and Logistic Regression;
+- optimizer is FTRL;
+- huge_data_set one-hot algorithm;
 """
 
 class FTRL:
@@ -101,11 +102,15 @@ class FTRL:
             evaluation = roc_auc_score(y_true=test_labels, y_score=test_preds)
         return evaluation
 
+def ignore_warning():
+    warnings.filterwarnings('ignore')
+
 def read_data(data_path, tar_col=None):
+    # 设置error_bad_lines=False，忽略某些异常的row
     if tar_col is not None:
-        data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col)
+        data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col,error_bad_lines=False)
     else:
-        data_samples = pd.read_csv(data_path, sep=',')
+        data_samples = pd.read_csv(data_path, sep=',',error_bad_lines=False)
 
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -127,18 +132,17 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
             print 'maybe index is wrong, please debug...'
             print 'data_samples.columns is', data_samples.columns[0]
             print 'col_name is', col_name
+            sys.exit()
 
         # call function
         data_preprocess_method = data_preprocess(data_samples, col_name)
         data_preprocess_method.run()
 
-        print col_name, 'done to label encode'
-
     print '\nBegin To one hot encode'
 
     # gabage collect
-    del data_samples
-    gc.collect()
+    # del data_samples
+    # gc.collect()
 
     # one-hot processing
     for col_name in need_one_hot_dic:
@@ -150,19 +154,18 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
             print 'maybe index is wrong, please debug...'
             print 'data_samples.columns is', data_samples.columns[0]
             print 'col_name is', col_name
+            sys.exit()
 
         # call function
         data_preprocess_method = data_preprocess(data_samples, col_name, 'one_hot')
         data_preprocess_method.run()
-
-        print col_name, 'done to one hot'
     
     # gabage collect
     del data_samples
     gc.collect()
 
-    # 合并所有的中间数据
-    paste_cmd = 'paste -d ',' prepro_*.dat > ../data/all_featrue_after_preprocessing.dat'
+    # 合并所有的中间数据（按列合并）
+    paste_cmd = "paste -d ','../data/prepro_*.dat > ../data/all_featrue_after_preprocessing.dat"
     paste_out = commands.getstatusoutput(paste_cmd)
 
     if str(paste_out[0]) == '0':
@@ -240,10 +243,10 @@ def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
 
 def main():
     # ignore warnings
-    warnings.filterwarnings("ignore")
+    ignore_warning()
 
     # set path of raw data
-    raw_data_path = '../data/feature_ryan.dat'
+    raw_data_path = '../data/huge_feature_ryan.dat'
 
     # set features needed to preprocessing
     """
@@ -256,13 +259,18 @@ def main():
     need_label_encode_dic = {'site_id':2,
                             'site_domain':3,
                             'app_id':5,
+                            'app_domain':6,
                             'device_id':8,
                             'device_ip':9,
                             'device_model':10,
                            }
 
     need_one_hot_dic = {'site_category':4,
-                        'app_domain':6,
+                        'C1':0,
+                        'C15':14,
+                        'C16':15,
+                        'C18':17,
+                        'banner_pos':1,
                         'app_category':7,
                         'device_type':11,
                         'device_conn_type':12
@@ -279,11 +287,16 @@ def main():
     target_samples = read_data('../data/label_ryan_dat')
 
     # data_set basic info
-    print '+----------------------+'
+    print '+-------------------------+'
+    print 'Basic Info About Data_Set'
     print 'feature dim is', len(data_samples.columns)
     print 'total  rows is', len(data_samples)
     print 'size of object is', format(sys.getsizeof(data_samples)/1024.0/1024.0, '0.2f'), 'MB'
-    print '+----------------------+'
+    print '+-------------------------+'
+
+
+    sys.exit()
+
 
     # split all the samples into training data and testing data
     X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=24)

@@ -52,7 +52,6 @@ class data_preprocess(object):
 		num_samples, dim_ = self.total_frame.shape
 
 		print 'After One Hot Encoding', 'dimension of', self.col_name, 'is', dim_
-		print '+------------------------------------------+'
 
 	def run(self):
 		# always need to label encode
