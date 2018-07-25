@@ -168,6 +168,12 @@ class FM:
                 preds[t] = self.update_param(sample=samples[t], label=labels[t], it=i+t)
                 log_loss += cal_loss(probability=preds[t], true_label=labels[t]) / n_samples
             train_error = evaluate_model(preds=preds, labels=labels)
+
+            # 构建数据盒子
+            email_inte = []
+            email_logloss = []
+            email_error = []
+
             if i % 10 == 0 & is_print:
                 # 打印训练进度
                 print("FM-after iteration %s, the total logloss is %s,"
@@ -183,14 +189,19 @@ class FM:
 
                 # 设置邮件发送基本信息
                 receivers = ['ryanfan0313@163.com']
-                Subject = 'Data Preprocessing Report'
-                table_name = 'Server Is Training FM'
-                date = time.strftime('%Y-%m-%d',time.localtime(time.time()))
+                Subject = 'Model trainning report in %d interation'%(i)
+                table_name = 'Server is training FM, iteration is %d' %(i)
+                date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+                # 累积更新当前的训练情况
+                email_inte.append(str(i))
+                email_logloss.append(str(log_loss))
+                email_error.append(str(train_error))
 
                 # 发邮件的内容
-                all_final_top = pd.DataFrame({'FM iterations' : [str(i)],
-                                              'Total logloss' : [str(log_loss)],
-                                              'Training error': [str(train_error)]
+                all_final_top = pd.DataFrame({'FM iterations' : email_inte,
+                                              'Total logloss' : email_logloss,
+                                              'Training error': email_error
                                             })
 
                 # 发送邮件

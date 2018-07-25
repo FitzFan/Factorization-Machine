@@ -245,7 +245,7 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
     receivers = ['ryanfan0313@163.com']
     Subject = 'Data Preprocessing Report'
     table_name = 'Data Path Is "%s"'%(raw_data_path)
-    date = time.strftime('%Y-%m-%d',time.localtime(time.time()))
+    date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
 
     # 设置发邮件的内容
     all_final_top = pd.DataFrame({'Task List':what_to_do_list,
@@ -355,7 +355,7 @@ def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
     receivers = ['ryanfan0313@163.com']
     Subject = 'Model Trainning Report'
     table_name = 'data set size is %d' %(len(X_train))
-    date = time.strftime('%Y-%m-%d',time.localtime(time.time()))
+    date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
 
     # 设置发邮件的内容
     all_final_top = pd.DataFrame({'Evaluation Metrics':what_to_do_list,
@@ -374,9 +374,11 @@ def main():
     # ignore warnings
     ignore_warning()
 
-    # set path of raw data
-    raw_data_path = '../data/src_test_feature.dat'
-
+    # set path of data needed to use
+    raw_data_path = '../data/feature_ryan.dat'
+    label_data_path = '../data/label_ryan.dat'
+    after_pre_data_path = '../data/all_featrue_after_preprocessing.dat'
+    
     # set features needed to preprocessing
     """
     - dict:
@@ -412,8 +414,8 @@ def main():
     preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic)
 
     # set path of preprocessed data
-    data_samples = read_data('../data/all_featrue_after_preprocessing.dat') # 预处理之后的feature数据路径
-    target_samples = read_data('../data/src_test_label.dat')
+    data_samples = read_data(after_pre_data_path) 
+    target_samples = read_data(label_data_path)
 
     # 获取数据集基本情况
     num_samples, dim_ = data_samples.shape
@@ -446,7 +448,7 @@ def main():
         'lambda_v1': 0.2,
         'lambda_v2': 0.2,
         }
-    iteration_ = 100
+    iteration_ = 1000
 
     # convert dataFrame to ndarray
     X_train = X_train.values
