@@ -86,6 +86,33 @@ class send_email(object):
 
         print "Send E-Mail Successfully!"
 
+    def email_error(self):
+        # Define SMTP email server details
+        smtp_server = 'smtp.qq.com'
+        smtp_port = 25
+        sender_username = 'fanpeng0313@vip.qq.com'
+        sender_password = 'ocfdswzravahbjhd'
+
+        # 发送的内容是错误代码
+        error_msg = self.final_top_frame
+
+        print "Send Mail From",sender_username
+        print "Send Mail To", self.receivers
+
+        msg = MIMEText(error_msg, 'plain', 'utf-8')
+        msg['From'] = 'fanpeng0313@vip.qq.com'
+        msg['To'] = ','.join(self.receivers)
+        msg['Subject'] = self.subject + '  ' + self.date
+
+        # Send email
+        s = smtplib.SMTP(smtp_server, smtp_port)
+        s.login(sender_username, sender_password)
+        s.sendmail(msg['From'], self.receivers, msg.as_string())
+        s.quit()
+
+        print "Send E-Mail Successfully!"
+
+
 # def main():
 #     # 设置参数
 #     receivers_1 = ['ryanfan0313@163.com']

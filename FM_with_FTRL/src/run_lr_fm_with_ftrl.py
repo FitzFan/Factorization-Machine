@@ -35,7 +35,7 @@ from send_email_src import send_email
 
 """
 待尝试优化：
-- read_csv()时，指定dtype。 【underdoing】
+- read_csv()时，指定dtype。 【done，效率提升60%左右】
 - 将object转化为category。  【to_do】
     - converted_obj.loc[:,col] = gl_obj[col].astype('category')
 - 根据int类型的取值范围设置对应的int类型：【to_do】
@@ -45,7 +45,10 @@ from send_email_src import send_email
 - pd.to_numeric() 来对数值型进行向下类型转换。【to_do】
     - 对数值型进行向下类型转换, method: apply(pd.to_numeric,downcast='unsigned')
     - float64 转换为 float32, method: apply(pd.to_numeric,downcast='float')
-
+- 相关参数写在cong.py
+    - 发邮件信息；
+    - 数据路径；
+    - etc；
 """
 
 
@@ -448,7 +451,7 @@ def main():
         'lambda_v1': 0.2,
         'lambda_v2': 0.2,
         }
-    iteration_ = 1000
+    iteration_ = 2000
 
     # convert dataFrame to ndarray
     X_train = X_train.values
@@ -470,5 +473,21 @@ def main():
     """
 
 if __name__ == "__main__":
-    main()
+    # 如果出错，将错误信息发送至监控邮箱
+    try:
+        main()
+    except Exception as error:
+        print '+******************************************+'
+        print str(error)
+        print '+******************************************+'
+
+        # 设置邮件发送基本信息
+        receivers = ['ryanfan0313@163.com']
+        Subject = 'Please debug for run_lr_fm_with_ftrl.py'
+        text = 'Error Msg As Following: ' + '\n' + '- ' + str(error)  # 设置错误信息的格式
+        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
+    
+        # 错误代码作为邮件内容，发送邮件
+        send_email_func = send_email(receivers, text, Subject, table_name, date)
+        send_email_func.email_error()
 
