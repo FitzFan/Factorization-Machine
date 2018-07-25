@@ -8,27 +8,46 @@
 """
 
 import os
-import time
-import sys
 import re
 import gc
+import sys
+import time
 import datetime
 import warnings
 import commands
-import pandas as pd 
 import numpy as np
+import pandas as pd 
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
 from FM_FTRL import FM
 from LR_FTRL import LR, evaluate_model, get_auc
 from preprocessing import data_preprocess
+from send_email_src import send_email
+
 
 """
 - DIY python implementation of Factorization Machines and Logistic Regression;
 - optimizer is FTRL;
 - huge_data_set one-hot algorithm;
+- Mail Notifier; 
 """
+
+"""
+待尝试优化：
+- read_csv()时，指定dtype。 【underdoing】
+- 将object转化为category。  【to_do】
+    - converted_obj.loc[:,col] = gl_obj[col].astype('category')
+- 根据int类型的取值范围设置对应的int类型：【to_do】
+    - uint8: [0, 255]
+    - int8: [-128, 127]
+    - int16:[-32768, 32767]
+- pd.to_numeric() 来对数值型进行向下类型转换。【to_do】
+    - 对数值型进行向下类型转换, method: apply(pd.to_numeric,downcast='unsigned')
+    - float64 转换为 float32, method: apply(pd.to_numeric,downcast='float')
+
+"""
+
 
 class FTRL:
     def __init__(self, base, args_parse, iteration):
@@ -107,16 +126,21 @@ def ignore_warning():
 
 def read_data(data_path, tar_col=None):
     # 设置error_bad_lines=False，忽略某些异常的row
+    # 读取特定列 <=> 做label_encode or one_hot <=> data_type is object
     if tar_col is not None:
-        data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col,error_bad_lines=False)
+        data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col, error_bad_lines=False, dtype='object', engine='c')
     else:
-        data_samples = pd.read_csv(data_path, sep=',',error_bad_lines=False)
+        data_samples = pd.read_csv(data_path, sep=',', error_bad_lines=False, engine='c')
 
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
     return data_samples
 
 def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
+    # 输出邮件的内容: what to do and time used
+    what_to_do_list = []
+    time_used_list = []
+
     # time clock
     start = time.clock()
 
@@ -124,6 +148,9 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
 
     # label-encode processing
     for col_name in need_label_encode_dic:
+        # 重启clock
+        start_encode = time.clock()
+
         # read data 
         data_samples = read_data(raw_data_path, [need_label_encode_dic[col_name]])
 
@@ -138,14 +165,26 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
         data_preprocess_method = data_preprocess(data_samples, col_name)
         data_preprocess_method.run()
 
-    print '\nBegin To one hot encode'
+        # gabage collect
+        del data_samples
+        gc.collect()
 
-    # gabage collect
-    # del data_samples
-    # gc.collect()
+        # 计算时间统计
+        encode_ela = time.clock() - start_encode
+        encode_ela = float(encode_ela) / 60
+        encode_ela = round(encode_ela, 2)
+
+        # 发邮件的内容
+        what_to_do_list.append('label_encode: ' + col_name)
+        time_used_list.append(str(encode_ela) + ' min')
+
+    print 'Begin To one hot encode'
 
     # one-hot processing
     for col_name in need_one_hot_dic:
+        # 重启clock
+        start_hot = time.clock()
+
         # read data 
         data_samples = read_data(raw_data_path, [need_one_hot_dic[col_name]])
 
@@ -160,19 +199,28 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
         data_preprocess_method = data_preprocess(data_samples, col_name, 'one_hot')
         data_preprocess_method.run()
     
-    # gabage collect
-    del data_samples
-    gc.collect()
+        # gabage collect
+        del data_samples
+        gc.collect()
+
+        # 计算时间统计
+        hot_ela = time.clock() - start_hot
+        hot_ela = float(hot_ela) / 60
+        hot_ela = round(hot_ela, 2)
+
+        # 发邮件的内容
+        what_to_do_list.append('one_hot: ' + col_name)
+        time_used_list.append(str(hot_ela) + ' min')
 
     # 合并所有的中间数据（按列合并）
-    paste_cmd = "paste -d ','../data/prepro_*.dat > ../data/all_featrue_after_preprocessing.dat"
+    paste_cmd = "paste -d ',' ../temp_data/prepro_*.dat > ../data/all_featrue_after_preprocessing.dat"
     paste_out = commands.getstatusoutput(paste_cmd)
 
     if str(paste_out[0]) == '0':
         print 'Succeed to paste all prepro_*.dat to all_featrue_preprocessing.dat'
 
         # check rows of all_featrue_preprocessing.dat
-        wc_cmd = 'wc -l all_featrue_after_preprocessing.dat'
+        wc_cmd = 'wc -l ../data/all_featrue_after_preprocessing.dat'
         wc_out = commands.getstatusoutput(wc_cmd)
 
         if str(wc_out[0]) == '0':
@@ -182,12 +230,47 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
     else:
         print paste_out[1]
 
-    print 'End To data preprocessing, time Used:', (time.clock() - start)
+    # 计算整个data precessing的耗时
+    data_pre_ela = time.clock() - start
+    data_pre_ela = float(data_pre_ela) / 60
+    data_pre_ela = round(data_pre_ela, 2)
+    print 'End To data preprocessing, time Used: %s min' %(str(data_pre_ela))
     print '+------------------------------------------+' 
+
+    # 添加汇总时间
+    what_to_do_list.append('All Data Preprocessing Job')
+    time_used_list.append(str(data_pre_ela) + ' min')
+
+    # 设置邮件发送基本信息
+    receivers = ['ryanfan0313@163.com']
+    Subject = 'Data Preprocessing Report'
+    table_name = 'Data Path Is "%s"'%(raw_data_path)
+    date = time.strftime('%Y-%m-%d',time.localtime(time.time()))
+
+    # 设置发邮件的内容
+    all_final_top = pd.DataFrame({'Task List':what_to_do_list,
+                                  'Time Used':time_used_list
+                                })
+
+    # 转换类型
+    for column in all_final_top:
+        all_final_top[column] = all_final_top[column].astype(str)
+
+    # 发送邮件
+    send_email_func = send_email(receivers, all_final_top, Subject, table_name, date)
+    send_email_func.run()
     
-def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):  
+def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_): 
     # time clock
     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+    # 重启clock
+    start_train = time.clock()
+
+    # 新建数据盒子
+    what_to_do_list = []
+    have_done_list = []
+
     print '+------------------------------------------+'
     print 'Begin To Train Model:', start_time
     
@@ -212,11 +295,23 @@ def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
     print("logistic regression-test error: %.2f%%" % test_error_lr)
     print("logistic regression-test auc: ", test_auc_lr)
     print("logistic regression-my test auc: ", my_test_auc_lr)
+    what_to_do_list.append("logistic regression-test error")
+    what_to_do_list.append("logistic regression-test auc")
+    what_to_do_list.append("logistic regression-my test auc")
+    have_done_list.append(str(test_error_lr))
+    have_done_list.append(str(test_auc_lr))
+    have_done_list.append(str(my_test_auc_lr))
     print '+------------------------------------------+'
 
     print("factorization machine-test error: %.2f%%" % test_error_fm)
     print("factorization machine-test auc: ", test_auc_fm)
     print("factorization machine-my test auc: ", my_test_auc_fm)
+    what_to_do_list.append("factorization machine-test error")
+    what_to_do_list.append("factorization machine-test auc")
+    what_to_do_list.append("factorization machine-my test")
+    have_done_list.append(str(test_error_fm))
+    have_done_list.append(str(test_auc_fm))
+    have_done_list.append(str(my_test_auc_fm))
     print '+------------------------------------------+'
 
     # test the unseen samples
@@ -227,6 +322,12 @@ def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
     print("test-error: %.2f%%" % test_error)
     print("test-sklearn auc: ", test_auc)
     print("test-my auc: ", my_auc)
+    what_to_do_list.append("test-error")
+    what_to_do_list.append("test-sklearn auc")
+    what_to_do_list.append("test-my auc")
+    have_done_list.append(str(test_error))
+    have_done_list.append(str(test_auc))
+    have_done_list.append(str(my_auc))
     print '+------------------------------------------+'
 
     # print the parameters of trained FM model
@@ -238,15 +339,43 @@ def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
     # time clock
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
+    # 计算训练耗时
+    model_train_ela = time.clock() - start_train
+    model_train_ela = float(model_train_ela) / 60
+    model_train_ela = round(model_train_ela, 2)
+
     print 'End To Train Model:', end_time
     print '+------------------------------------------+'
+
+    # 添加时间信息
+    what_to_do_list.append('Total Train Job Time Used')
+    time_used_list.append(str(model_train_ela) + ' min')
+
+    # 设置邮件发送基本信息
+    receivers = ['ryanfan0313@163.com']
+    Subject = 'Model Trainning Report'
+    table_name = 'data set size is %d' %(len(X_train))
+    date = time.strftime('%Y-%m-%d',time.localtime(time.time()))
+
+    # 设置发邮件的内容
+    all_final_top = pd.DataFrame({'Evaluation Metrics':what_to_do_list,
+                                  'Model Value':have_done_list
+                                })
+
+    # 转换类型
+    for column in all_final_top:
+        all_final_top[column] = all_final_top[column].astype(str)
+
+    # 发送邮件
+    send_email_func = send_email(receivers, all_final_top, Subject, table_name, date)
+    send_email_func.run()
 
 def main():
     # ignore warnings
     ignore_warning()
 
     # set path of raw data
-    raw_data_path = '../data/huge_feature_ryan.dat'
+    raw_data_path = '../data/src_test_feature.dat'
 
     # set features needed to preprocessing
     """
@@ -283,21 +412,19 @@ def main():
     preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic)
 
     # set path of preprocessed data
-    data_samples = read_data('../data/all_featrue_after_preprocessing.dat')
-    target_samples = read_data('../data/label_ryan_dat')
+    data_samples = read_data('../data/all_featrue_after_preprocessing.dat') # 预处理之后的feature数据路径
+    target_samples = read_data('../data/src_test_label.dat')
+
+    # 获取数据集基本情况
+    num_samples, dim_ = data_samples.shape
 
     # data_set basic info
-    print '+-------------------------+'
+    print '+------------------------------------------+'
     print 'Basic Info About Data_Set'
-    print 'feature dim is', len(data_samples.columns)
-    print 'total  rows is', len(data_samples)
+    print 'feature dim is', dim_
+    print 'total  rows is', num_samples
     print 'size of object is', format(sys.getsizeof(data_samples)/1024.0/1024.0, '0.2f'), 'MB'
-    print '+-------------------------+'
-
-
-    sys.exit()
-
-
+    
     # split all the samples into training data and testing data
     X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=24)
  

@@ -8,13 +8,20 @@
 """
 
 import os
-import pickle
+import re
+import gc
+import sys
+import time
+import datetime
+import warnings
+import commands
 import numpy as np
-import sklearn.datasets as dt
+import pandas as pd 
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+
+from send_email_src import send_email
 from LR_FTRL import cal_loss, logistic, generator_nonzero, generate_samples, evaluate_model, get_auc
-'''factorization machine'''
 
 
 class FM:
@@ -150,6 +157,10 @@ class FM:
         n_samples, dim = np.shape(samples)
         i = 0
         preds = np.zeros(n_samples)
+
+        # 初始化time_clock
+        start = time.clock()
+
         while i < iteration:
             log_loss = 0.0
             for t in range(n_samples):
@@ -158,8 +169,34 @@ class FM:
                 log_loss += cal_loss(probability=preds[t], true_label=labels[t]) / n_samples
             train_error = evaluate_model(preds=preds, labels=labels)
             if i % 10 == 0 & is_print:
+                # 打印训练进度
                 print("FM-after iteration %s, the total logloss is %s,"
                       " the training error is %.2f%%" % (i, log_loss, train_error))
+
+                # 计算时间统计
+                train_ela = time.clock() - start
+                train_ela = float(train_ela) / 60
+                train_ela = round(train_ela, 2)
+
+                # 重置clock
+                start = time.clock()
+
+                # 设置邮件发送基本信息
+                receivers = ['ryanfan0313@163.com']
+                Subject = 'Data Preprocessing Report'
+                table_name = 'Server Is Training FM'
+                date = time.strftime('%Y-%m-%d',time.localtime(time.time()))
+
+                # 发邮件的内容
+                all_final_top = pd.DataFrame({'FM iterations' : [str(i)],
+                                              'Total logloss' : [str(log_loss)],
+                                              'Training error': [str(train_error)]
+                                            })
+
+                # 发送邮件
+                send_email_func = send_email(receivers, all_final_top, Subject, table_name, date)
+                send_email_func.run()
+
             i += 1
 
     def load_model(self, file_path):
