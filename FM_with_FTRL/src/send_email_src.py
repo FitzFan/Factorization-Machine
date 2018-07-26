@@ -17,6 +17,11 @@ import warnings
 import smtplib
 from email.mime.text import MIMEText
 
+"""
+- run(): 发送html格式的邮件
+- email_plain_text(): 发送plain text格式邮件
+"""
+
 
 class send_email(object):
     def __init__(self, receivers, final_top_frame, subject, table_name, time_line):
@@ -86,7 +91,7 @@ class send_email(object):
 
         print "Send E-Mail Successfully!"
 
-    def email_error(self):
+    def email_plain_text(self):
         # Define SMTP email server details
         smtp_server = 'smtp.qq.com'
         smtp_port = 25

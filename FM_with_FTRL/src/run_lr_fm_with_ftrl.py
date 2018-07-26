@@ -15,6 +15,7 @@ import time
 import datetime
 import warnings
 import commands
+import traceback
 import numpy as np
 import pandas as pd 
 from sklearn.metrics import roc_auc_score
@@ -27,30 +28,26 @@ from send_email_src import send_email
 
 
 """
-- DIY python implementation of Factorization Machines and Logistic Regression;
-- optimizer is FTRL;
-- huge_data_set one-hot algorithm;
-- Mail Notifier; 
+- algo desc:
+    - DIY python implementation of Factorization Machines and Logistic Regression
+    - optimizer is FTRL
+    - huge_data_set one-hot algorithm
+    - Mail Notifier
 """
 
 """
-待尝试优化：
-- read_csv()时，指定dtype。 【done，效率提升60%左右】
-- 将object转化为category。  【to_do】
-    - converted_obj.loc[:,col] = gl_obj[col].astype('category')
-- 根据int类型的取值范围设置对应的int类型：【to_do】
-    - uint8: [0, 255]
-    - int8: [-128, 127]
-    - int16:[-32768, 32767]
-- pd.to_numeric() 来对数值型进行向下类型转换。【to_do】
-    - 对数值型进行向下类型转换, method: apply(pd.to_numeric,downcast='unsigned')
-    - float64 转换为 float32, method: apply(pd.to_numeric,downcast='float')
-- 相关参数写在cong.py
+- 优化的起点在于监控自己的算法：top -u peng.fan
+- 已做优化：
+    - 使用gabage collect 回收内存；
+    - read_csv()时，指定dtype。 【done，效率提升80%左右，内存节省200%以上】 ^ ^
+    - 使用pd.to_numeric()来优化特征类型，尝试后发现会起到反作用（内存占用提高了300%） - -
+    
+- 待做的优化：
+- 相关参数写在conf.py
     - 发邮件信息；
     - 数据路径；
     - etc；
 """
-
 
 class FTRL:
     def __init__(self, base, args_parse, iteration):
@@ -127,19 +124,17 @@ class FTRL:
 def ignore_warning():
     warnings.filterwarnings('ignore')
 
-def read_data(data_path, tar_col=None):
-    # 设置error_bad_lines=False，忽略某些异常的row
-    # 读取特定列 <=> 做label_encode or one_hot <=> data_type is object
-    if tar_col is not None:
-        data_samples = pd.read_csv(data_path, sep=',', usecols=tar_col, error_bad_lines=False, dtype='object', engine='c')
-    else:
-        data_samples = pd.read_csv(data_path, sep=',', error_bad_lines=False, engine='c')
-
-    end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
-    return data_samples
-
 def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
+    # 删除中间数据文件夹的数据
+    del_cmd = 'rm ../temp_data/*'
+    del_out = commands.getstatusoutput(del_cmd)
+
+    if str(del_out[0]) == '0':
+        print 'Succeed to flush all ../temp_data/*'
+        print '+------------------------------------------+'
+    else:
+        print str(del_out[1])
+
     # 输出邮件的内容: what to do and time used
     what_to_do_list = []
     time_used_list = []
@@ -154,8 +149,10 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
         # 重启clock
         start_encode = time.clock()
 
-        # read data 
-        data_samples = read_data(raw_data_path, [need_label_encode_dic[col_name]])
+        # read data
+        data_samples = pd.read_csv(raw_data_path, sep=',', 
+                                   usecols=[need_label_encode_dic[col_name]], 
+                                   error_bad_lines=False, dtype='object', engine='c')
 
         # 设一个保险
         if data_samples.columns[0] != col_name:
@@ -188,8 +185,10 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
         # 重启clock
         start_hot = time.clock()
 
-        # read data 
-        data_samples = read_data(raw_data_path, [need_one_hot_dic[col_name]])
+        # read data
+        data_samples = pd.read_csv(raw_data_path, sep=',', 
+                                   usecols=[need_one_hot_dic[col_name]], 
+                                   error_bad_lines=False, dtype='object', engine='c')
 
         # 设一个保险
         if data_samples.columns[0] != col_name:
@@ -221,15 +220,6 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
 
     if str(paste_out[0]) == '0':
         print 'Succeed to paste all prepro_*.dat to all_featrue_preprocessing.dat'
-
-        # check rows of all_featrue_preprocessing.dat
-        wc_cmd = 'wc -l ../data/all_featrue_after_preprocessing.dat'
-        wc_out = commands.getstatusoutput(wc_cmd)
-
-        if str(wc_out[0]) == '0':
-            print 'rows of all_featrue_preprocessing.dat is',wc_out[1][0:wc_out[1].find(' ')]
-        else:
-            print wc_out[1]
     else:
         print paste_out[1]
 
@@ -378,10 +368,11 @@ def main():
     ignore_warning()
 
     # set path of data needed to use
-    raw_data_path = '../data/feature_ryan.dat'
-    label_data_path = '../data/label_ryan.dat'
-    after_pre_data_path = '../data/all_featrue_after_preprocessing.dat'
-    
+    raw_data_path = '../data/double_feature_ryan.dat'
+    label_data_path = '../data/double_label_ryan.dat'
+    after_pre_data_path = '../data/all_featrue_after_preprocessing.dat'  # preprocess()处理后生成的文件
+    feature_analyse_path = '../out_put/feature_ana.dat' # shell脚本做的特征预分析
+
     # set features needed to preprocessing
     """
     - dict:
@@ -390,6 +381,17 @@ def main():
     - one_hot 和 label_encode只需要做其中一个
     - 坑：shell索引的起点是1，python是0。
     """
+    # 读取feature_analyse_data
+    feature_ana_frame = pd.read_csv(feature_analyse_path)
+
+    # 过滤出连续型的feature
+    cont_feature = feature_ana_frame[feature_ana_frame['col_type'].apply(lambda x:str(x).find('int')!=-1 or str(x).find('float')!=-1)]
+
+    # 连续型特征字典
+    continuous_feature_dic = dict(zip(cont_feature['col_name'], cont_feature['python_num']))
+    continuous_feature_type = dict(zip(cont_feature['col_name'], cont_feature['col_type']))
+
+    # 手动设置需要预处理的特征字典
     need_label_encode_dic = {'site_id':2,
                             'site_domain':3,
                             'app_id':5,
@@ -410,28 +412,92 @@ def main():
                         'device_conn_type':12
                         }
 
+    # maybe部分连续型变量做了label_encode 或 one_hot
+    for key in continuous_feature_dic.keys():
+        if key in set(need_label_encode_dic.keys()) | set(need_one_hot_dic.keys()):
+            continuous_feature_dic.pop(key)
+            continuous_feature_type.pop(key)
+
     # data preprocessing
-    """
-    增加更大数据量的压力测试
-    """
     preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic)
 
-    # set path of preprocessed data
-    data_samples = read_data(after_pre_data_path) 
-    target_samples = read_data(label_data_path)
+    # 读取少量行的数据
+    data_samples = pd.read_csv(after_pre_data_path, sep=',', error_bad_lines=False, engine='c', nrows=24) # 读取所有字段的前24行
+
+    # 保存每一列的数据类型
+    col_dtype_dict = {}
+    for col in data_samples.columns:
+        if col.find('#$#') != -1:
+            col_dtype_dict[col] = 'uint8'
+        else:
+            col_dtype_dict[col] = str(data_samples[col].dtypes)
+
+    # read all preprocessed data
+    print '+------------------------------------------+'
+    print 'Begin To read all train data set and concat'
+
+    # 指定每个字段的dtype的方式读取csv文件，以节约内存
+    cate_samples = pd.read_csv(after_pre_data_path, sep=',', dtype=col_dtype_dict, error_bad_lines=False, engine='c')
+    cont_samples = pd.read_csv(raw_data_path, sep=',', 
+                               usecols=[continuous_feature_dic[key] for key in continuous_feature_dic], 
+                               error_bad_lines=False, engine='c', dtype=continuous_feature_type)
+    # 合并data_frame
+    data_samples = pd.concat([cate_samples, cont_samples], axis=1)
+    categorical_dim = len(cate_samples.columns)
+    continuous_dim = len(cont_samples.columns)
+
+    if len(data_samples.columns) != categorical_dim+continuous_dim:
+        print '+------------------------------------------+'
+        print 'Fail To data concat, please debug.'
+        sys.exit()
+    else:
+        nan_info = data_samples.shape[0] - data_samples.count()
+        nan_list = nan_info[nan_info.apply(lambda x: x!=0)]
+        if len(nan_list) != 0:
+            print '+------------------------------------------+'
+            print 'NaN info Of Data_Set'
+            print 'Following Features Have NaN value:'
+            print nan_list
+        else:
+            print '+------------------------------------------+'
+            print 'No Feature has NaN value'
+            print '+------------------------------------------+'
+
+    # gabage collect
+    del cate_samples, cont_samples
+    gc.collect()
+
+    print 'Begin To read label_ryan.dat'
+    target_samples = pd.read_csv(label_data_path, sep=',', error_bad_lines=False, engine='c')
 
     # 获取数据集基本情况
     num_samples, dim_ = data_samples.shape
 
+    # 计算数据占用内存情况
+    mem_use = sum(data_samples.memory_usage(deep=True))
+    mem_use = float(mem_use) / 1024 ** 3
+
     # data_set basic info
-    print '+------------------------------------------+'
-    print 'Basic Info About Data_Set'
-    print 'feature dim is', dim_
-    print 'total  rows is', num_samples
-    print 'size of object is', format(sys.getsizeof(data_samples)/1024.0/1024.0, '0.2f'), 'MB'
-    
+    print 'categorical_dim is', categorical_dim
+    print 'continuous_dim is ', continuous_dim
+    print 'total rows is', num_samples
+
+    # 邮件提醒已读完所有数据
+    receivers = ['ryanfan0313@163.com']
+    Subject = 'Succeed To Read All Train Data'
+    text = '***Data Info As Following: ***\n'
+    text += '- feature_data_set Memorry Used: %f GB \n'%(round(mem_use, 2))
+    text += '- categorical_dim: %d\n'%(categorical_dim)
+    text += '- continuous_dim : %d\n'%(continuous_dim)
+    text += '- total data rows: %d' %(num_samples)
+    print text
+    table_name = ' '
+    date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
+    send_email_func = send_email(receivers, text, Subject, table_name, date)
+    send_email_func.email_plain_text()
+
     # split all the samples into training data and testing data
-    X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=24)
+    X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=313)
  
     # gabage collect
     del data_samples, target_samples
@@ -451,7 +517,7 @@ def main():
         'lambda_v1': 0.2,
         'lambda_v2': 0.2,
         }
-    iteration_ = 2000
+    iteration_ = 5000
 
     # convert dataFrame to ndarray
     X_train = X_train.values
@@ -476,18 +542,19 @@ if __name__ == "__main__":
     # 如果出错，将错误信息发送至监控邮箱
     try:
         main()
-    except Exception as error:
+    except:
         print '+******************************************+'
-        print str(error)
+        print str(traceback.format_exc())
         print '+******************************************+'
 
         # 设置邮件发送基本信息
         receivers = ['ryanfan0313@163.com']
         Subject = 'Please debug for run_lr_fm_with_ftrl.py'
-        text = 'Error Msg As Following: ' + '\n' + '- ' + str(error)  # 设置错误信息的格式
-        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
+        text = 'Error Msg As Following: ' + '\n' + str(traceback.format_exc())  # 设置错误信息的格式
+        date = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        table_name = ''
     
         # 错误代码作为邮件内容，发送邮件
         send_email_func = send_email(receivers, text, Subject, table_name, date)
-        send_email_func.email_error()
+        send_email_func.email_plain_text()
 
