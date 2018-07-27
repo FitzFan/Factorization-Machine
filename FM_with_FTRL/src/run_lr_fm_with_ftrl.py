@@ -30,6 +30,7 @@ from send_email_src import send_email
 """
 - algo desc:
     - DIY python implementation of Factorization Machines and Logistic Regression
+    - select model to train
     - optimizer is FTRL
     - huge_data_set one-hot algorithm
     - Mail Notifier
@@ -253,7 +254,7 @@ def preprocess(raw_data_path, need_label_encode_dic, need_one_hot_dic):
     send_email_func = send_email(receivers, all_final_top, Subject, table_name, date)
     send_email_func.run()
     
-def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_): 
+def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_, lr_tag=True, fm_tag=True): 
     # time clock
     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -267,67 +268,57 @@ def train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_):
     print '+------------------------------------------+'
     print 'Begin To Train Model:', start_time
     
-    # create models
-    lr = FTRL(base="lr", args_parse=hyper_params, iteration=iteration_)
-    fm = FTRL(base="fm", args_parse=hyper_params, iteration=iteration_)
+    # select model to train
+    if lr_tag:
+        # train models
+        lr = FTRL(base="lr", args_parse=hyper_params, iteration=iteration_)
+        lr.fit(X_train, y_train)
 
-    # train models
-    params = fm.fit(X_train, y_train)
-    lr.fit(X_train, y_train)
+        # test the unseen samples
+        test_preds_lr = lr.predict(X_test)
+        test_error_lr = evaluate_model(test_preds_lr, y_test)
+        test_auc_lr = roc_auc_score(y_true=y_test, y_score=test_preds_lr)
+        my_test_auc_lr = get_auc(scores=test_preds_lr, labels=y_test)
 
-    # test the unseen samples
-    test_preds_lr = lr.predict(X_test)
-    test_preds_fm = fm.predict(X_test)
-    test_error_lr = evaluate_model(test_preds_lr, y_test)
-    test_error_fm = evaluate_model(test_preds_fm, y_test)
-    test_auc_lr = roc_auc_score(y_true=y_test, y_score=test_preds_lr)
-    test_auc_fm = roc_auc_score(y_true=y_test, y_score=test_preds_fm)
-    my_test_auc_lr = get_auc(scores=test_preds_lr, labels=y_test)
-    my_test_auc_fm = get_auc(scores=test_preds_fm, labels=y_test)
+        # print train model info
+        print("logistic regression test error: %.2f%%" % test_error_lr)
+        print("logistic regression test auc: ", test_auc_lr)
+        print("logistic regression-my test auc: ", my_test_auc_lr)
+        what_to_do_list.append("logistic regression-test error")
+        what_to_do_list.append("logistic regression-test auc")
+        what_to_do_list.append("logistic regression-my test auc")
+        have_done_list.append(str(test_error_lr))
+        have_done_list.append(str(test_auc_lr))
+        have_done_list.append(str(my_test_auc_lr))
+        print '+------------------------------------------+'
 
-    print("logistic regression-test error: %.2f%%" % test_error_lr)
-    print("logistic regression-test auc: ", test_auc_lr)
-    print("logistic regression-my test auc: ", my_test_auc_lr)
-    what_to_do_list.append("logistic regression-test error")
-    what_to_do_list.append("logistic regression-test auc")
-    what_to_do_list.append("logistic regression-my test auc")
-    have_done_list.append(str(test_error_lr))
-    have_done_list.append(str(test_auc_lr))
-    have_done_list.append(str(my_test_auc_lr))
-    print '+------------------------------------------+'
+    if fm_tag:
+        # train models
+        fm = FTRL(base="fm", args_parse=hyper_params, iteration=iteration_)
+        params = fm.fit(X_train, y_train)
 
-    print("factorization machine-test error: %.2f%%" % test_error_fm)
-    print("factorization machine-test auc: ", test_auc_fm)
-    print("factorization machine-my test auc: ", my_test_auc_fm)
-    what_to_do_list.append("factorization machine-test error")
-    what_to_do_list.append("factorization machine-test auc")
-    what_to_do_list.append("factorization machine-my test")
-    have_done_list.append(str(test_error_fm))
-    have_done_list.append(str(test_auc_fm))
-    have_done_list.append(str(my_test_auc_fm))
-    print '+------------------------------------------+'
+        # test the unseen samples
+        test_preds_fm = fm.predict(X_test)
+        test_error_fm = evaluate_model(test_preds_fm, y_test)
+        test_auc_fm = roc_auc_score(y_true=y_test, y_score=test_preds_fm)
+        my_test_auc_fm = get_auc(scores=test_preds_fm, labels=y_test)
 
-    # test the unseen samples
-    test_preds = fm.predict(X_test)
-    test_error = evaluate_model(test_preds, y_test)
-    test_auc = roc_auc_score(y_true=y_test, y_score=test_preds)
-    my_auc = get_auc(scores=test_preds, labels=y_test)
-    print("test-error: %.2f%%" % test_error)
-    print("test-sklearn auc: ", test_auc)
-    print("test-my auc: ", my_auc)
-    what_to_do_list.append("test-error")
-    what_to_do_list.append("test-sklearn auc")
-    what_to_do_list.append("test-my auc")
-    have_done_list.append(str(test_error))
-    have_done_list.append(str(test_auc))
-    have_done_list.append(str(my_auc))
-    print '+------------------------------------------+'
-
-    # print the parameters of trained FM model
-    print("weights: ", params['weights'])
-    print("bias: ", params['bias'])
-    print("V: ", params['V']) 
-    print '+------------------------------------------+'
+        # print train model info
+        print("factorization machine-test error: %.2f%%" % test_error_fm)
+        print("factorization machine-test auc: ", test_auc_fm)
+        print("factorization machine-my test auc: ", my_test_auc_fm)
+        what_to_do_list.append("factorization machine-test error")
+        what_to_do_list.append("factorization machine-test auc")
+        what_to_do_list.append("factorization machine-my test")
+        have_done_list.append(str(test_error_fm))
+        have_done_list.append(str(test_auc_fm))
+        have_done_list.append(str(my_test_auc_fm))
+        print '+------------------------------------------+'
+        print '\n'
+        print("FM weights: ", params['weights'])
+        print("FM bias: ", params['bias'])
+        print("FM latent vectors: ", params['V']) 
+        print '+------------------------------------------+'
 
     # time clock
     end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -368,8 +359,8 @@ def main():
     ignore_warning()
 
     # set path of data needed to use
-    raw_data_path = '../data/double_feature_ryan.dat'
-    label_data_path = '../data/double_label_ryan.dat'
+    raw_data_path = '../data/feature_ryan.dat'
+    label_data_path = '../data/label_ryan.dat'
     after_pre_data_path = '../data/all_featrue_after_preprocessing.dat'  # preprocess()处理后生成的文件
     feature_analyse_path = '../out_put/feature_ana.dat' # shell脚本做的特征预分析
 
@@ -517,7 +508,7 @@ def main():
         'lambda_v1': 0.2,
         'lambda_v2': 0.2,
         }
-    iteration_ = 5000
+    iteration_ = 1000
 
     # convert dataFrame to ndarray
     X_train = X_train.values
@@ -531,8 +522,12 @@ def main():
     print "type of y_train is", type(y_train)
     print "type of y_test  is", type(y_test)
 
+    # select model
+    sel_lr = False
+    sel_fm = True
+
     # train model
-    train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_)
+    train_model(X_train, X_test, y_train, y_test, hyper_params, iteration_, sel_lr, sel_fm)
 
     """
     还差：save model and test use model
