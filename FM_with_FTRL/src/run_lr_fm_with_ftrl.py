@@ -489,7 +489,17 @@ def main():
 
     # split all the samples into training data and testing data
     X_train, X_test, y_train, y_test = train_test_split(data_samples, target_samples, test_size=0.2, random_state=313)
- 
+
+    # 4千万的数据有些扛不住，做一个sampling
+    X_train = X_train[0:400000]
+    X_test  = X_test[0:400000]
+    y_train = y_train[0:400000]
+    y_test  = y_test[0:400000]
+
+    print '---------------------'
+    print 'data samples is', len(X_train)
+    print '---------------------'
+
     # gabage collect
     del data_samples, target_samples
     gc.collect()
