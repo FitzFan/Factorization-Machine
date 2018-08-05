@@ -44,10 +44,10 @@ from send_email_src import send_email
     - 使用pd.to_numeric()来优化特征类型，尝试后发现会起到反作用（内存占用提高了300%） - -
     
 - 待做的优化：
-- 相关参数写在conf.py
-    - 发邮件信息；
-    - 数据路径；
-    - etc；
+    - 相关参数写在conf.py
+        - 发邮件信息；
+        - 数据路径；
+    - maybe set chunksize parameter can be better? link: https://yashuseth.blog/2017/12/14/how-to-one-hot-encode-categorical-variables-of-a-large-dataset-in-python/
 """
 
 class FTRL:
